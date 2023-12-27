@@ -4,7 +4,7 @@
 
 ## Usage
 
-`mvu` - Move with progress bar
+`mvu` - Move with progress bar\
 `cpu` - Copy with progress bar
 
 ## Installing
