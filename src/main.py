@@ -11,7 +11,7 @@ argv = sys.argv
 cmd = "mv" if "mv" in argv[0] else "cp"
 
 if not len(argv) == 3:
-    print(f"Usage: {cmd} SOURCE DESTINATION")
+    print(f"Usage: {cmd} <source> <destination>")
     exit(127)
 
 
@@ -157,9 +157,9 @@ class Copy:
         self.dst = dst
 
     def _get_new_path(self, path):
-        p = os.path.relpath(path, self.src)
-        # noinspection PyTypeChecker
-        return os.path.join(self.dst, p)
+        common_path = os.path.commonpath([self.src, path])
+        relative_path = os.path.relpath(path, common_path)
+        return os.path.join(self.dst, relative_path)
 
     def create_dirs(self):
         for src_dir in self.dirs:
@@ -208,12 +208,10 @@ def main():
                 mdata[j] += v
     else:
         count, mdata = count_objects(src)
-    print("\n", src, count)
-    print(mdata)
     pb = ProgressBar(count)
     cp = Copy(pb, mdata, src, dst)
     print(f"\r{count}", end="", flush=True)
-    print(f"\rCopying files: {count[2]} in dirs: {count[1]}; Size: {_size(count[3])}", flush=True)
+    print(f"\r{'Copying' if cmd == 'cp' else 'Moving'} objects: {count[0]}; Size: {_size(count[3])}", flush=True)
 
     if not os.path.exists(dst) and not os.path.isfile(src):
         os.makedirs(dst)
@@ -223,6 +221,8 @@ def main():
         t.start()
         cp.create_dirs()
         cp.copy_files()
+        if cmd == 'mv':
+            shutil.rmtree(src)
     except KeyboardInterrupt:
         print("\nAborted")
         pb.aborted = True
