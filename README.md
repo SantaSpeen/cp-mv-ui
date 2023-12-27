@@ -1,11 +1,11 @@
-# cp, mv with ui
+# cp, mv with progress bar
 
 [gif]
 
 ## Usage
 
-`mvu` - Move with ui
-`cpu` - Copy with ui
+`mvu` - Move with progress bar
+`cpu` - Copy with progress bar
 
 ## Installing
 
