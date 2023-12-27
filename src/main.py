@@ -207,7 +207,7 @@ def main():
     if len(src) == 1:
         src = src[0]
         dirs = glob.glob(src)
-        if len(dirs) == 0:
+        if len(dirs) == 0 and isinstance(src, str) and not os.path.exists(src):
             print(f"No matching found: {src}")
             exit(127)
         elif len(dirs) == 1:
