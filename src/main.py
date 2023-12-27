@@ -1,5 +1,5 @@
 #!/usr/local/bin/python3
-
+import glob
 import os
 import shutil
 import sys
@@ -66,12 +66,26 @@ def count_objects(folder_path):
         count[0] += len(files)
         count[2] += len(files)
 
+    if os.path.isfile(folder_path):
+        try:
+            count[3] += os.path.getsize(folder_path)
+            mdata[1].append(folder_path)
+        except FileNotFoundError:
+            print(f"{folder_path}: File listed, but not found.")
+        except PermissionError:
+            print(f"{folder_path}: Permission denied.")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+        count[0] = 1
+        count[2] = 1
+
     return count, mdata
 
 
 class ProgressBar:
     def __init__(self, count):
         self.work = True
+        self.aborted = False
         self.files = count[0]
         self.size = count[3]
         self.lock = threading.Lock()
@@ -129,7 +143,8 @@ class ProgressBar:
 
         self.size_counter = self.size
         self.file_counter = self.files
-        self.update(0, 0)
+        if not self.aborted:
+            self.update(0, 0)
 
 
 class Copy:
@@ -173,12 +188,28 @@ def main():
     src = argv[1]
     dst = argv[2]
 
-    if not os.path.exists(src):
-        print(f"Invalid arguments")
+    dirs = glob.glob(src)
+    if len(dirs) == 0:
+        print(f"No matching found: {src}")
         exit(127)
+    elif len(dirs) == 1:
+        src = dirs[0]
+        dirs = False
 
     print("Counting objects in folder..", end="", flush=True)
-    count, mdata = count_objects(src)
+
+    if dirs:
+        count, mdata = [0, 0, 0, 0], [[], []]
+        for i in dirs:
+            c, m = count_objects(i)
+            for j, v in enumerate(c):
+                count[j] += v
+            for j, v in enumerate(m):
+                mdata[j] += v
+    else:
+        count, mdata = count_objects(src)
+    print("\n", src, count)
+    print(mdata)
     pb = ProgressBar(count)
     cp = Copy(pb, mdata, src, dst)
     print(f"\r{count}", end="", flush=True)
@@ -192,6 +223,9 @@ def main():
         t.start()
         cp.create_dirs()
         cp.copy_files()
+    except KeyboardInterrupt:
+        print("\nAborted")
+        pb.aborted = True
     finally:
         pb.work = False
     t.join()
