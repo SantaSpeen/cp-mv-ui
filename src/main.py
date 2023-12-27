@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3
+#!/bin/python3
 import glob
 import os
 import shutil
@@ -10,9 +10,9 @@ argv = sys.argv
 
 cmd = "mv" if "mv" in argv[0] else "cp"
 
-if not len(argv) == 3:
+if len(argv) < 2:
     print(f"Usage: {cmd} <source> <destination>")
-    exit(127)
+    exit(1)
 
 
 def _size(size):
@@ -101,9 +101,9 @@ class ProgressBar:
         # rt - remaining time
         # last - working time on last msg
         with self.lock:
-            rt_str = _time(rt) if rt != float('inf') else "..."
             c = f" {self.file_counter}/{self.files}" if not last else f"{self.files} objects, "
             sz = f"{_size(s * 50)}/s" if not last else f"{_size(self.size)}, {_size(self.size/last)}/s, "
+            rt_str = _time(rt) if rt != float('inf') else "..."
             eta = f"ETA: {rt_str}" if not last else _time(last)
             info = f" {c} {sz} {eta}"
 
@@ -199,27 +199,31 @@ class Copy:
             except Exception as e:
                 print(f"An unexpected error occurred: {e}")
 
-        self.pb.work = False
-
 
 def main():
-    src = argv[1]
-    dst = argv[2]
+    src = argv[1:-1]
+    dst = argv[-1:][0]
 
-    dirs = glob.glob(src)
-    if len(dirs) == 0:
-        print(f"No matching found: {src}")
-        exit(127)
-    elif len(dirs) == 1:
-        src = dirs[0]
-        dirs = False
+    if len(src) == 1:
+        src = src[0]
+        dirs = glob.glob(src)
+        if len(dirs) == 0:
+            print(f"No matching found: {src}")
+            exit(127)
+        elif len(dirs) == 1:
+            src = dirs[0]
+            dirs = False
+    else:
+        dirs = src
 
     print("Counting objects in folder..", end="", flush=True)
 
+    _cache = []
     if dirs:
         count, mdata = [0, 0, 0, 0], [[], []]
         for i in dirs:
             c, m = count_objects(i)
+            _cache.append([c, m])
             for j, v in enumerate(c):
                 count[j] += v
             for j, v in enumerate(m):
@@ -227,20 +231,31 @@ def main():
     else:
         count, mdata = count_objects(src)
     pb = ProgressBar(count)
-    cp = Copy(pb, mdata, src, dst)
     print(f"\r{count}", end="", flush=True)
     print(f"\r{'Copying' if cmd == 'cp' else 'Moving'} objects: {count[0]}; Size: {_size(count[3])}", flush=True)
-
-    if not os.path.exists(dst) and not os.path.isfile(src):
-        os.makedirs(dst)
 
     t = threading.Thread(target=pb.worker)
     try:
         t.start()
-        cp.create_dirs()
-        cp.copy_files()
-        if cmd == 'mv':
-            shutil.rmtree(src)
+        if isinstance(src, list):
+            for i, isrc in enumerate(src):
+                _, m = _cache[i]
+                _dst = os.path.join(dst, isrc)
+                if not os.path.exists(_dst) and not os.path.isfile(isrc):
+                    os.makedirs(_dst)
+                cp = Copy(pb, m, isrc, _dst)
+                cp.create_dirs()
+                cp.copy_files()
+                if cmd == 'mv':
+                    shutil.rmtree(isrc)
+        else:
+            if not os.path.exists(dst) and not os.path.isfile(src):
+                os.makedirs(dst)
+            cp = Copy(pb, mdata, src, dst)
+            cp.create_dirs()
+            cp.copy_files()
+            if cmd == 'mv':
+                shutil.rmtree(src)
     except KeyboardInterrupt:
         print("\nAborted")
         pb.aborted = True
