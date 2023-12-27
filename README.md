@@ -1,9 +1,19 @@
 # cp, mv with ui
 
-Still in develop
+[gif]
 
 ## Usage
 
+`mvu` - Move with ui
+`cpu` - Copy with ui
+
 ## Installing
 
-## Contacts
+```bash
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/SantaSpeen/cp-mv-ui/master/install.sh)"
+```
+
+## Links
+
+* [Author's Telegram](https://t.me/SantaSpeen "SantaSpeen"): https://t.me/SantaSpeen
+
