@@ -96,12 +96,16 @@ class ProgressBar:
 
         self.size_counter = 0
 
-    def update(self, s, rt):
-        # s - size delta (0.1s), rt - remaining time
-        self.size_counter += s
+    def update(self, s, rt, last=0.0):
+        # s - size delta (0.1s)
+        # rt - remaining time
+        # last - working time on last msg
         with self.lock:
             rt_str = _time(rt) if rt != float('inf') else "..."
-            info = f" {self.file_counter}/{self.files} {_size(s*10)}/s ETA: {rt_str}"
+            c = f" {self.file_counter}/{self.files}" if not last else f"{self.files} objects, "
+            sz = f"{_size(s * 50)}/s" if not last else f"{_size(self.size)}, {_size(self.size/last)}/s, "
+            eta = f"ETA: {rt_str}" if not last else _time(last)
+            info = f" {c} {sz} {eta}"
 
             progress = int((self.size_counter / self.size) * (self.width - len(info) - 2))
             bar = f"[{'#' * progress}{' ' * ((self.width - len(info)) - progress - 2)}]"
@@ -115,6 +119,9 @@ class ProgressBar:
         self.update(0, 0)
         last_size = 0
         last_file = 0
+        size_deltas = []
+        rts = []
+        time_start = time.monotonic()
         while self.work:
             try:
                 if self.file_counter != last_file:
@@ -128,23 +135,34 @@ class ProgressBar:
                     now_size = os.path.getsize(self.file_now_path)
                     # Calculate the size delta
                     size_delta = now_size - last_size
+                    self.size_counter += size_delta
                     last_size = now_size
                     # Calculate the remaining time
                     remaining_files = self.files - self.file_counter
                     rt = (remaining_files * size_delta) / self.size
-                    self.update(size_delta, rt)
+                    # Collect size_delta and rt values
+                    size_deltas.append(size_delta)
+                    rts.append(rt)
+                    if len(size_deltas) == 15:
+                        avg_size_delta = sum(size_deltas) / 15
+                        avg_rt = sum(rts) / 15
+                        self.update(avg_size_delta, avg_rt)
+                        size_deltas = []
+                        rts = []
+
             except FileNotFoundError:
                 continue
             except PermissionError:
                 print(f"{self.file_now_path}: Permission denied.")
             except Exception as e:
                 print(f"An unexpected error occurred: {e}")
-            time.sleep(0.1)
+            time.sleep(0.01)
 
         self.size_counter = self.size
         self.file_counter = self.files
         if not self.aborted:
-            self.update(0, 0)
+            time_end = time.monotonic()
+            self.update(0, 0, time_end - time_start)
 
 
 class Copy:
