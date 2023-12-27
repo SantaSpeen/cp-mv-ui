@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/local/bin/python3
 
 import os
 import sys
@@ -72,13 +72,12 @@ def main():
     dst = argv[2]
 
     print("Counting objects in folder..", end="", flush=True)
-    c, mdata = count_objects(src)
+    c, m = count_objects(src)
     print(f"\r{c}", end="", flush=True)
     print(f"\rCopying files: {c[0]}, {c[3] / (1024.0 * 1024.0):.1f}mb", flush=True)
 
-    max_value = c[0]
-    pb = ProgressBar(max_value)
-    progress_thread = threading.Thread(target=worker, args=(pb, max_value))
+    pb = ProgressBar(c[0])
+    progress_thread = threading.Thread(target=worker, args=(pb, c[0]))
     progress_thread.start()
     progress_thread.join()
 
