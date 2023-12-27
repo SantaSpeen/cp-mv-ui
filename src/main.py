@@ -24,15 +24,18 @@ def count_objects(folder_path):
     #        total
     mdata = [[], []]
     for root, dirs, files in os.walk(folder_path):
-        count[0] += len(dirs)
-        count[1] += len(dirs)
-        mdata[0] += [os.path.join(root, d) for d in dirs]
-        count[0] += len(files)
-        count[2] += len(files)
-        for f in files:
-            file_path = os.path.join(root, f)
-            count[3] += os.path.getsize(file_path)  # adding file size to count[3]
-            mdata[1].append(file_path)
+            for f in files:
+                file_path = os.path.join(root, f)
+                try:
+                    count[3] += os.path.getsize(file_path)  # adding file size to count[3]
+                    mdata[1].append(file_path)
+                except FileNotFoundError:
+                    print(f"Strange file: {file_path}")
+            count[0] += len(dirs)
+            count[1] += len(dirs)
+            mdata[0] += [os.path.join(root, d) for d in dirs]
+            count[0] += len(files)
+            count[2] += len(files)
 
     return count, mdata
 
@@ -54,22 +57,25 @@ class ProgressBar:
             print(f"\r{bar}", end="", flush=True)
 
 
-def worker(pb, max_value):
+def worker(pb, c, m):
     start_time = time.time()
-    for i in range(max_value + 1):
-        time.sleep(0.1)  # Имитация работы
+    for i in range(pb.max_value + 1):
+        time.sleep(0.1)
         elapsed_time = time.time() - start_time
         speed = i / elapsed_time if elapsed_time > 0 else 0
         pb.update(i, speed)
 
 
 def main():
-    if not os.path.exists(f"./{argv[1]}") or not os.path.exists(f"./{argv[2]}"):
+    src = argv[1]
+    dst = argv[2]
+
+    if not os.path.exists(src):
         print(f"Invalid arguments")
         exit(127)
 
-    src = argv[1]
-    dst = argv[2]
+    if not os.path.exists(dst) and not os.path.isfile(src):
+        os.makedirs(dst)
 
     print("Counting objects in folder..", end="", flush=True)
     c, m = count_objects(src)
@@ -77,9 +83,9 @@ def main():
     print(f"\rCopying files: {c[0]}, {c[3] / (1024.0 * 1024.0):.1f}mb", flush=True)
 
     pb = ProgressBar(c[0])
-    progress_thread = threading.Thread(target=worker, args=(pb, c[0]))
-    progress_thread.start()
-    progress_thread.join()
+    pt = threading.Thread(target=worker, args=(pb, c, m))
+    pt.start()
+    pt.join()
 
 
 if __name__ == "__main__":
