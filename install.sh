@@ -46,14 +46,15 @@ command_exists python3 || {
 
 # curl file
 curl https://raw.githubusercontent.com/SantaSpeen/cp-mv-ui/master/src/main.py -o "$HOME/.cp-mv-ui.py"
+chmod +x "$HOME/.cp-mv-ui.py"
 
 # set symbolic link
 if user_can_sudo; then
-  sudo ln -s "$HOME/cp-mv-ui.py" /usr/bin/cpu
-  sudo ln -s "$HOME/cp-mv-ui.py" /usr/bin/mvu
+  sudo ln -s "$HOME/.cp-mv-ui.py" /usr/local/bin/cpu
+  sudo ln -s "$HOME/.cp-mv-ui.py" /usr/local/bin/mvu
 else
-  ln -s "$HOME/cp-mv-ui.py" /usr/bin/cpu
-  ln -s "$HOME/cp-mv-ui.py" /usr/bin/mvu
+  ln -s "$HOME/.cp-mv-ui.py" /usr/local/bin/cpu
+  ln -s "$HOME/.cp-mv-ui.py" /usr/local/bin/mvu
 fi
 
 echo Ready to use: mvu cpg
