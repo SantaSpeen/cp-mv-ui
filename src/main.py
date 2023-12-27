@@ -1,8 +1,8 @@
 #!/usr/local/bin/python3
 
 import os
-import sys
 import shutil
+import sys
 import threading
 import time
 
@@ -15,6 +15,24 @@ if not len(argv) == 3:
     exit(127)
 
 
+def _size(s):
+    KB = 1024
+    MB = KB * 1024
+    GB = MB * 1024
+    if s >= GB:
+        return f"{s / GB:.2f}gb"
+    elif s >= MB:
+        return f"{s / MB:.2f}mb"
+    elif s >= KB:
+        return f"{s / KB:.2f}kb"
+    else:
+        return f"{s}b"
+
+
+def _time():
+    pass
+
+
 def count_objects(folder_path):
     count = [0, 0, 0, 0]
     #        |  |  |  |
@@ -23,47 +41,64 @@ def count_objects(folder_path):
     #        |  dirs
     #        total
     mdata = [[], []]
+    #        |   |
+    #        |   files path
+    #        dirs path
     for root, dirs, files in os.walk(folder_path):
-            for f in files:
-                file_path = os.path.join(root, f)
-                try:
-                    count[3] += os.path.getsize(file_path)  # adding file size to count[3]
-                    mdata[1].append(file_path)
-                except FileNotFoundError:
-                    print(f"Strange file: {file_path}")
-            count[0] += len(dirs)
-            count[1] += len(dirs)
-            mdata[0] += [os.path.join(root, d) for d in dirs]
-            count[0] += len(files)
-            count[2] += len(files)
+        for f in files:
+            file_path = os.path.join(root, f)
+            try:
+                count[3] += os.path.getsize(file_path)  # adding file size to count[3]
+                mdata[1].append(file_path)
+            except FileNotFoundError:
+                print(f"Strange file: {file_path}")
+        count[0] += len(dirs)
+        count[1] += len(dirs)
+        mdata[0] += [os.path.join(root, d) for d in dirs]
+        count[0] += len(files)
+        count[2] += len(files)
 
     return count, mdata
 
 
 class ProgressBar:
-    def __init__(self, max_value):
-        self.max_value = max_value
+    def __init__(self, count):
+        self.work = True
+        self.files = count[0]
+        self.size = count[3]
         self.lock = threading.Lock()
-        w, _ = shutil.get_terminal_size()
-        self.width = w - len(str(self.max_value)) * 2 - 32
+        self.width, _ = shutil.get_terminal_size()
 
-    def update(self, now, speed):
+        self.file_counter = 0
+        self.file_now_path = None
+        self.file_now_size = 0
+
+        self.size_counter = 0
+
+    def update(self, s):
+        # s - size delta (0.1s)
+        self.size_counter += s
         with self.lock:
-            progress = int((now / self.max_value) * self.width)
-            remaining_time = (self.max_value - now) / speed if speed > 0 else float('inf')
-            remaining_time_str = f"{remaining_time:.2f} s" if remaining_time != float('inf') else "..."
-            speed_str = f"{speed:.2f} Mb/s"
-            bar = f"[{'#' * progress}{' ' * (self.width - progress)}] {now}/{self.max_value} {speed_str} ETA: {remaining_time_str}"
-            print(f"\r{bar}", end="", flush=True)
+            rt = (self.size - s) / self.size
+            rt_str = f"{rt:.2f} s" if rt != float('inf') else "..."
+            info = f" {self.file_counter}/{self.files} {_size(s)}/s" # ETA: {rt_str}"
 
+            progress = int((self.size_counter / self.size) * (self.width - len(info)))
+            bar = f"[{'#' * progress}{' ' * ((self.width - len(info)) - progress)}]"
+            print(f"\r{bar}{info}", end="", flush=True)
+    
+    def set_file(self, path, size):
+        self.file_counter += 1
+        self.file_now_path = path
+        self.file_now_size = size
 
-def worker(pb, c, m):
-    start_time = time.time()
-    for i in range(pb.max_value + 1):
-        time.sleep(0.1)
-        elapsed_time = time.time() - start_time
-        speed = i / elapsed_time if elapsed_time > 0 else 0
-        pb.update(i, speed)
+    def worker(self):
+        while self.work:
+            if self.file_counter == 0:
+                time.sleep
+                continue
+            self.width, _ = shutil.get_terminal_size()
+            time.sleep(0.1)
 
 
 def main():
@@ -74,18 +109,14 @@ def main():
         print(f"Invalid arguments")
         exit(127)
 
+    print("Counting objects in folder..", end="", flush=True)
+    count, mdata = count_objects(src)
+    pb = ProgressBar(count)
+    print(f"\r{count}", end="", flush=True)
+    print(f"\rCopying files: {count[0]}; Size: {_size(count[3])}", flush=True)
+
     if not os.path.exists(dst) and not os.path.isfile(src):
         os.makedirs(dst)
-
-    print("Counting objects in folder..", end="", flush=True)
-    c, m = count_objects(src)
-    print(f"\r{c}", end="", flush=True)
-    print(f"\rCopying files: {c[0]}, {c[3] / (1024.0 * 1024.0):.1f}mb", flush=True)
-
-    pb = ProgressBar(c[0])
-    pt = threading.Thread(target=worker, args=(pb, c, m))
-    pt.start()
-    pt.join()
 
 
 if __name__ == "__main__":
