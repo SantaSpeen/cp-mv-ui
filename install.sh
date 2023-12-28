@@ -57,4 +57,5 @@ else
   ln -s "$HOME/.cp-mv-ui.py" /usr/local/bin/mvu
 fi
 
-echo Ready to use: mvu cpg
+echo Ready to use: mvu cpu
+
