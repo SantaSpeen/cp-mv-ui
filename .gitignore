@@ -162,3 +162,7 @@ cython_debug/
 _test/
 cp
 mv
+
+.idea/
+.vscode/
+
