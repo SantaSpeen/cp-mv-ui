@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/local/bin/python3
 import glob
 import os
 import shutil
@@ -177,23 +177,22 @@ class Copy:
     def _get_new_path(self, path):
         common_path = os.path.commonpath([self.src, path])
         relative_path = os.path.relpath(path, common_path)
+        if os.path.isfile(path) and relative_path == '.':
+            return self.dst
         return os.path.join(self.dst, relative_path)
-
-    def create_dirs(self):
-        for src_dir in self.dirs:
-            dst_dir = self._get_new_path(src_dir)
-            os.makedirs(dst_dir, exist_ok=True)
-            self.pb.set_file(dst_dir)
-
+    
     def copy_files(self):
         for src_file in self.files:
             dst_file = self._get_new_path(src_file)
             try:
+                dst_dir = os.path.dirname(dst_file)
+                os.makedirs(dst_dir, exist_ok=True)
                 self.pb.set_file(dst_file)
                 # noinspection PyTypeChecker
                 shutil.copy(src_file, dst_file)
             except FileNotFoundError:
                 print(f"{src_file}: File not found.")
+                # raise FileExistsError
             except PermissionError:
                 print(f"{src_file}: Permission denied.")
             except Exception as e:
@@ -235,27 +234,24 @@ def main():
     print(f"\r{'Copying' if cmd == 'cp' else 'Moving'} objects: {count[0]}; Size: {_size(count[3])}", flush=True)
 
     t = threading.Thread(target=pb.worker)
+
+    def do(d, s, m):
+        if not os.path.exists(d) and not os.path.isfile(s):
+            os.makedirs(d)
+        cp = Copy(pb, m, s, d)
+        cp.copy_files()
+        if cmd == 'mv':
+            shutil.rmtree(s)
+
     try:
         t.start()
         if isinstance(src, list):
             for i, isrc in enumerate(src):
                 _, m = _cache[i]
                 _dst = os.path.join(dst, isrc)
-                if not os.path.exists(_dst) and not os.path.isfile(isrc):
-                    os.makedirs(_dst)
-                cp = Copy(pb, m, isrc, _dst)
-                cp.create_dirs()
-                cp.copy_files()
-                if cmd == 'mv':
-                    shutil.rmtree(isrc)
+                do(_dst, isrc, m)
         else:
-            if not os.path.exists(dst) and not os.path.isfile(src):
-                os.makedirs(dst)
-            cp = Copy(pb, mdata, src, dst)
-            cp.create_dirs()
-            cp.copy_files()
-            if cmd == 'mv':
-                shutil.rmtree(src)
+            do(dst, src, mdata)
     except KeyboardInterrupt:
         print("\nAborted")
         pb.aborted = True
