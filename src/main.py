@@ -86,7 +86,8 @@ class ProgressBar:
     def __init__(self, count):
         self.work = True
         self.aborted = False
-        self.files = count[0]
+        self.count = count
+        self.files = count[2]
         self.size = count[3]
         self.lock = threading.Lock()
         self.width, _ = shutil.get_terminal_size()
@@ -101,7 +102,9 @@ class ProgressBar:
         # rt - remaining time
         # last - working time on last msg
         with self.lock:
-            c = f" {self.file_counter}/{self.files}" if not last else f"{self.files} objects, "
+            c = f" {self.file_counter}/{self.files}" if not last else \
+                f"{self.files} file{'s' if self.files > 1 else ''}, " \
+                    + f"{self.count[1]} dir{'s' if self.count[1] > 1 else ''}," if self.count[1] > 0 else ''
             sz = f"{_size(s * 50)}/s" if not last else f"{_size(self.size)}, {_size(self.size/last)}/s, "
             rt_str = _time(rt) if rt != float('inf') else "..."
             eta = f"ETA: {rt_str}" if not last else _time(last)
