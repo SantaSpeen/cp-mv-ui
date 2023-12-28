@@ -104,8 +104,8 @@ class ProgressBar:
         with self.lock:
             c = f" {self.file_counter}/{self.files}" if not last else \
                 f"{self.files} file{'s' if self.files > 1 else ''}, " \
-                    + f"{self.count[1]} dir{'s' if self.count[1] > 1 else ''}," if self.count[1] > 0 else ''
-            sz = f"{_size(s * 50)}/s" if not last else f"{_size(self.size)}, {_size(self.size/last)}/s, "
+                + f"{self.count[1]} dir{'s' if self.count[1] > 1 else ''}," if self.count[1] > 0 else ''
+            sz = f"{_size(s * 50)}/s" if not last else f"{_size(self.size)}, {_size(self.size / last)}/s, "
             rt_str = _time(rt) if rt != float('inf') else "..."
             eta = f"ETA: {rt_str}" if not last else _time(last)
             info = f" {c} {sz} {eta}"
@@ -180,10 +180,10 @@ class Copy:
     def _get_new_path(self, path):
         common_path = os.path.commonpath([self.src, path])
         relative_path = os.path.relpath(path, common_path)
-        if os.path.isfile(path) and relative_path == '.':
-            return self.dst
+        # if os.path.isfile(path) and relative_path == '.':
+        #     return self.dst
         return os.path.join(self.dst, relative_path)
-    
+
     def copy_files(self):
         for src_file in self.files:
             dst_file = self._get_new_path(src_file)
@@ -193,6 +193,7 @@ class Copy:
                 self.pb.set_file(dst_file)
                 # noinspection PyTypeChecker
                 shutil.copy(src_file, dst_file)
+                # print(src_file, dst_file)
             except FileNotFoundError:
                 print(f"{src_file}: File not found.")
                 # raise FileExistsError
